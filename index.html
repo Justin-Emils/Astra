@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A* 六边形寻路可视化 · 人工智能导论</title>
+<title>A* 网格寻路可视化 · 人工智能导论</title>
 <style>
   :root{
     --navy:#0b1f3a;
@@ -56,31 +56,29 @@
     background:linear-gradient(90deg,#38bdf8,#22d3ee 38%,#fbbf24 72%,#fb923c);
     opacity:.9;
   }
-  .hero-inner{position:relative;max-width:1480px;margin:0 auto;padding:22px 28px 24px}
+  .hero-inner{position:relative;max-width:1480px;margin:0 auto;padding:18px 28px 20px}
   .eyebrow{
     display:flex;align-items:center;gap:10px;
     font-size:11px;letter-spacing:.22em;text-transform:uppercase;
     color:#7dd3fc;font-weight:700;
   }
   .eyebrow::before{content:"";width:26px;height:1px;background:#38bdf8;display:inline-block}
-  h1{margin:8px 0 6px;font-size:clamp(26px,2.25vw,36px);line-height:1.18;letter-spacing:.01em}
-  .hero p{margin:0;color:#c7d7ea;font-size:13.5px}
+  h1{margin:7px 0 5px;font-size:clamp(24px,2.05vw,33px);line-height:1.18;letter-spacing:.01em}
+  .hero p{margin:0;color:#c7d7ea;font-size:13px}
   .hero p b{color:#fde68a;font-weight:700}
   main{
-    max-width:1480px;margin:20px auto 18px;padding:0 28px;
+    max-width:1480px;margin:18px auto 14px;padding:0 28px;
     display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:20px;align-items:start;
   }
   .card{
     background:#fff;border:1px solid rgba(219,230,243,.9);
     border-radius:18px;box-shadow:var(--card-shadow);
   }
-  .board-card{padding:16px 16px 14px;min-width:0}
-  .board-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  .board-card{padding:14px 16px 12px;min-width:0}
+  .board-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap}
   .legend{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
   .legend .item{display:flex;align-items:center;gap:6px;font-size:12px;color:#42536b;font-weight:600}
   .swatch{width:12px;height:12px;border-radius:4px;border:2px solid transparent;display:inline-block}
-  .swatch.g{background:#dbeafe;border-color:#60a5fa}
-  .swatch.h{background:#ffedd5;border-color:#fb923c}
   .swatch.open{background:#fff7d6;border-color:#f59e0b}
   .swatch.closed{background:#e0f2fe;border-color:#38bdf8}
   .swatch.path{background:#fef08a;border-color:#eab308}
@@ -90,11 +88,31 @@
     padding:6px 11px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums;
   }
   .step-pill b{color:var(--navy);font-size:13px}
+
+  .map-toolbar{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+    margin:0 0 9px;padding:7px 10px;
+    background:#f7fbff;border:1px solid #e3eef9;border-radius:12px;
+  }
+  .map-toolbar .field{display:flex;align-items:center;gap:5px;font-size:11.5px;color:#5b6b82;font-weight:700}
+  .map-toolbar select,
+  .map-toolbar input[type=number]{
+    font-family:inherit;font-size:12px;color:#17395f;background:#fff;
+    border:1px solid #cfe0f3;border-radius:8px;padding:5px 6px;font-weight:700;
+  }
+  .map-toolbar input[type=number]{width:52px;text-align:center;font-variant-numeric:tabular-nums}
+  .map-toolbar button{padding:6px 9px;font-size:11.5px;border-radius:8px}
+  .map-toolbar .tile-count{font-size:11px;color:#6b7c93;white-space:nowrap;margin-left:auto}
+  .map-toolbar .divider{width:1px;height:22px;background:#dbe8f6;margin:0 1px}
+  .mode-btn.active{background:var(--navy);border-color:var(--navy);color:#fff}
+  .mode-btn.active:hover{background:#123b66;border-color:#123b66}
+
   .canvas-wrap{
     position:relative;border-radius:14px;overflow:hidden;
     border:1px solid #dbe8f6;background:#f8fbff;
   }
   #board{display:block;width:100%;height:auto}
+  #board.picking{cursor:crosshair}
   .tooltip{
     position:absolute;z-index:5;pointer-events:none;opacity:0;transform:translateY(3px);
     transition:opacity .08s ease, transform .08s ease;
@@ -105,7 +123,7 @@
   .tooltip.show{opacity:1;transform:translateY(0)}
   .tooltip b{color:#fff;font-size:12px}
   .tooltip .g{color:#93c5fd}.tooltip .h{color:#fdba74}.tooltip .f{color:#fef08a}
-  .board-bottom{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11.5px;color:#6b7c93;flex-wrap:wrap}
+  .board-bottom{display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:11.5px;color:#6b7c93;flex-wrap:wrap}
   .board-bottom .ok{color:#15803d;font-weight:700}
   .board-bottom .bad{color:#b91c1c;font-weight:700}
   .side{display:flex;flex-direction:column;gap:12px;min-width:0}
@@ -139,7 +157,7 @@
   .values{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
   .value{border-radius:11px;padding:8px 6px;text-align:center;border:1px solid transparent}
   .value span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.04em;margin-bottom:2px}
-  .value b{display:block;font-size:18px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .value b{display:block;font-size:17px;line-height:1.1;font-variant-numeric:tabular-nums}
   .value.g{background:#eff6ff;border-color:#dbeafe;color:#1d4ed8}
   .value.h{background:#fff7ed;border-color:#ffedd5;color:#c2410c}
   .value.f{background:#f8fafc;border-color:#e2e8f0;color:#0f172a}
@@ -164,15 +182,16 @@
   button:active{transform:translateY(1px)}
   button.primary{grid-column:1/-1;background:var(--navy);border-color:var(--navy);color:#fff;font-size:13px}
   button.primary:hover{background:#123b66;border-color:#123b66}
+  button.wide{grid-column:1/-1}
   button:disabled{opacity:.4;cursor:not-allowed;transform:none}
   .speed{grid-column:1/-1;display:flex;align-items:center;gap:9px;font-size:11.5px;color:#5b6b82;margin-top:2px}
   .speed input{flex:1;accent-color:#2563eb}
   .note{background:#f7fbff;color:#42536b;font-size:11.5px;line-height:1.6}
   .note b{color:#17395f}
   .note p{margin:5px 0 0}
-  .progress{height:4px;background:#e8f1fb;border-radius:99px;overflow:hidden;margin-top:9px}
+  .progress{height:4px;background:#e8f1fb;border-radius:99px;overflow:hidden;margin-top:8px}
   .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#38bdf8,#2563eb);transition:width .12s linear}
-  footer{max-width:1480px;margin:0 auto 24px;padding:0 28px;color:#7b8aa0;font-size:11px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  footer{max-width:1480px;margin:0 auto 20px;padding:0 28px;color:#7b8aa0;font-size:11px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
   @media (max-width:1120px){
     main{grid-template-columns:1fr}
     .side{display:grid;grid-template-columns:1fr 1fr}
@@ -180,10 +199,11 @@
   }
   @media (max-width:720px){
     main{padding:0 14px;margin-top:14px}
-    .hero-inner{padding:18px 18px 20px}
+    .hero-inner{padding:16px 18px 18px}
     .board-card{padding:12px}
     .side{grid-template-columns:1fr}
     .legend{gap:9px}
+    .map-toolbar .tile-count{margin-left:0}
   }
 </style>
 </head>
@@ -191,8 +211,8 @@
 <header class="hero">
   <div class="hero-inner">
     <div class="eyebrow">人工智能导论 · 5.3 A* 搜索</div>
-    <h1>六边形网格 A* 寻路可视化</h1>
-    <p><b>g</b> 是已经走过的实际代价，<b>h</b> 是到终点的估计代价，<b>f = g + h</b> 决定下一个扩展谁。</p>
+    <h1>网格 A* 寻路可视化</h1>
+    <p>六边形 / 方格都能跑：<b>g</b> 是已经走过的实际代价，<b>h</b> 是到终点的估计代价，<b>f = g + h</b> 决定下一个扩展谁。</p>
   </div>
 </header>
 
@@ -208,14 +228,32 @@
       <div class="step-pill">步骤 <b id="stepNow">0</b> / <b id="stepTotal">0</b></div>
     </div>
 
+    <div class="map-toolbar">
+      <label class="field">形状
+        <select id="shapeSelect">
+          <option value="hex">六边形</option>
+          <option value="square4">方格 · 4 方向</option>
+          <option value="square8">方格 · 8 方向</option>
+        </select>
+      </label>
+      <label class="field">列 <input id="colsInput" type="number" min="8" max="18" value="14"></label>
+      <label class="field">行 <input id="rowsInput" type="number" min="6" max="13" value="10"></label>
+      <button id="applyMapBtn">生成地图</button>
+      <button id="randomBtn">随机地图</button>
+      <span class="tile-count" id="tileCount">14 × 10 = 140 格</span>
+      <span class="divider"></span>
+      <button id="setStartBtn" class="mode-btn">设置起点</button>
+      <button id="setGoalBtn" class="mode-btn">设置终点</button>
+    </div>
+
     <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="board" width="1040" height="650" aria-label="六边形 A* 寻路画布"></canvas>
+      <canvas id="board" width="1040" height="610" aria-label="A* 寻路画布"></canvas>
       <div class="tooltip" id="tooltip"></div>
     </div>
 
     <div class="progress"><i id="progressBar"></i></div>
     <div class="board-bottom">
-      <span>左键切换墙 · Shift+左键设起点 · Alt+左键设终点 · 空格播放/暂停</span>
+      <span id="editHint">左键切换墙 · Shift+左键设起点 · Alt+左键设终点 · 空格播放/暂停</span>
       <span id="mapStatus" class="ok">搜索准备就绪</span>
     </div>
   </section>
@@ -225,8 +263,8 @@
       <div class="formula"><span class="f">f</span>(n) = <span class="g">g</span>(n) + <span class="h">h</span>(n)</div>
       <div class="formula-sub">每个格子里的三个数字，就是这三个值</div>
       <div class="defs">
-        <div class="row"><span class="tag g">g</span><div><b>实际代价</b>：从起点走到当前格，已经真实花掉的步数。</div></div>
-        <div class="row"><span class="tag h">h</span><div><b>估计代价</b>：当前格到终点的六边形距离，是“还剩多远”的估计。</div></div>
+        <div class="row"><span class="tag g">g</span><div><b>实际代价</b>：从起点走到当前格，已经真实花掉的代价。</div></div>
+        <div class="row"><span class="tag h">h</span><div><b>估计代价</b>：当前格到终点的<span id="hDesc">六边形距离</span>，是“还剩多远”的估计。</div></div>
         <div class="row"><span class="tag f">f</span><div><b>总估计</b>：f = g + h。A* 每次弹出 f 最小的格子；f 相同时优先 h 更小的。</div></div>
       </div>
     </div>
@@ -259,20 +297,19 @@
       <button id="playBtn" class="primary">▶ 开始搜索</button>
       <button id="prevBtn">← 上一步</button>
       <button id="nextBtn">下一步 →</button>
-      <button id="resetBtn">重置</button>
-      <button id="randomBtn">随机地图</button>
+      <button id="resetBtn" class="wide">重置</button>
       <div class="speed">速度 <input id="speed" type="range" min="1" max="10" value="6"><span id="speedVal">6</span></div>
     </div>
 
     <div class="card note">
       <b>怎么读这张图？</b>
-      <p>蓝色 <b>g</b> 是已经走出来的，橙色 <b>h</b> 是算出来的估计，黑色 <b>f</b> 是两者之和。每扩展一个格子，它的邻居才第一次拥有 g 和 f；终点被弹出时，黄色路径就是最优路径。</p>
+      <p>蓝色 <b>g</b> 是已经走出来的，橙色 <b>h</b> 是算出来的估计，黑色 <b>f</b> 是两者之和。未访问的格子只显示 h；终点被弹出时，黄色路径就是最优路径。改形状、行列或起终点后会自动重新搜索。</p>
     </div>
   </aside>
 </main>
 
 <footer>
-  <span>六边形网格 · 单位步长 · 六边形距离启发式</span>
+  <span id="footerMeta">六边形 · 单位步长 · 六边形距离启发式</span>
   <span id="seedLabel">地图种子 —</span>
 </footer>
 
@@ -280,13 +317,11 @@
 (function(){
   "use strict";
 
-  const W = 1040, H = 650;
-  const SIZE = 37;
-  const COLS = 14, ROWS = 10;
+  const W = 1040, H = 610;
   const WALL_RATE = 0.24;
-  const DIRS = [[1,0],[-1,0],[1,-1],[0,-1],[0,1],[-1,1]];
-  const START_COL = 1, START_ROW = 1;
-  const GOAL_COL = COLS - 2, GOAL_ROW = ROWS - 2;
+  const HEX_DIRS = [[1,0],[-1,0],[1,-1],[0,-1],[0,1],[-1,1]];
+  const SQ4_DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
+  const SQ8_DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
 
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
@@ -298,6 +333,10 @@
   canvas.height = H * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+  let shape = 'hex';
+  let cols = 14, rows = 10;
+  let tileSize = 0;      // 六边形外接圆半径
+  let cellSize = 0;      // 方格边长
   let tiles = new Map();
   let startTile = null, goalTile = null;
   let snapshots = [];
@@ -305,15 +344,19 @@
   let timer = null;
   let playing = false;
   let hoverKey = null;
+  let editMode = null;   // null | 'start' | 'goal'
   let currentSeed = 7;
 
   const $ = (id) => document.getElementById(id);
   const playBtn = $('playBtn'), prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
   const resetBtn = $('resetBtn'), randomBtn = $('randomBtn'), speed = $('speed');
+  const shapeSelect = $('shapeSelect'), colsInput = $('colsInput'), rowsInput = $('rowsInput');
+  const applyMapBtn = $('applyMapBtn'), setStartBtn = $('setStartBtn'), setGoalBtn = $('setGoalBtn');
 
   /* ---------------- 基础工具 ---------------- */
 
   function key(q, r){ return q + ',' + r; }
+  function sqKey(row, col){ return row + ',' + col; }
 
   function mulberry32(a){
     return function(){
@@ -329,6 +372,32 @@
     return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
   }
 
+  function heuristicToGoal(node, goal){
+    if (shape === 'hex') return hexDistance(node, goal);
+    const dr = Math.abs(node.row - goal.row);
+    const dc = Math.abs(node.col - goal.col);
+    if (shape === 'square4') return dr + dc;
+    return (dr + dc) + (Math.SQRT2 - 2) * Math.min(dr, dc);
+  }
+
+  function fmt(v){
+    if (!Number.isFinite(v)) return '—';
+    return Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(1);
+  }
+
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+  function shapeLimits(s){
+    if (s === 'hex'){
+      return { minCols:8, maxCols:18, minRows:6, maxRows:13, defCols:14, defRows:10 };
+    }
+    return { minCols:6, maxCols:24, minRows:5, maxRows:16, defCols:16, defRows:11 };
+  }
+
+  function baseSize(){
+    return shape === 'hex' ? tileSize : cellSize;
+  }
+
   function tileAtColRow(map, col, row){
     for (const t of map.values()){
       if (t.col === col && t.row === row) return t;
@@ -336,18 +405,40 @@
     return null;
   }
 
+  /* ---------------- 邻居与代价 ---------------- */
+
+  function neighborsOf(node, map){
+    const list = [];
+    const dirs = shape === 'hex' ? HEX_DIRS : (shape === 'square4' ? SQ4_DIRS : SQ8_DIRS);
+    for (const [a, b] of dirs){
+      let nb;
+      if (shape === 'hex') nb = map.get(key(node.q + a, node.r + b));
+      else nb = map.get(sqKey(node.row + a, node.col + b));
+      if (!nb || nb.wall) continue;
+
+      let cost = 1;
+      if (shape === 'square8' && a !== 0 && b !== 0){
+        // 不允许穿墙角：两个相邻直角格都必须是通道
+        const n1 = map.get(sqKey(node.row + a, node.col));
+        const n2 = map.get(sqKey(node.row, node.col + b));
+        if (!n1 || !n2 || n1.wall || n2.wall) continue;
+        cost = Math.SQRT2;
+      }
+      list.push({ node:nb, cost });
+    }
+    return list;
+  }
+
   function reachable(map, start, goal){
     const seen = new Set([start.key]);
-    const queue = [start.key];
+    const queue = [start];
     while (queue.length){
-      const k = queue.shift();
-      if (k === goal.key) return true;
-      const t = map.get(k);
-      for (const [dq, dr] of DIRS){
-        const nb = map.get(key(t.q + dq, t.r + dr));
-        if (nb && !nb.wall && !seen.has(nb.key)){
-          seen.add(nb.key);
-          queue.push(nb.key);
+      const t = queue.shift();
+      if (t.key === goal.key) return true;
+      for (const edge of neighborsOf(t, map)){
+        if (!seen.has(edge.node.key)){
+          seen.add(edge.node.key);
+          queue.push(edge.node);
         }
       }
     }
@@ -356,18 +447,23 @@
 
   /* ---------------- 地图生成 ---------------- */
 
-  function buildMap(seed){
+  function buildMap(seed, shapeType, nCols, nRows){
     const map = new Map();
     const rng = mulberry32(seed);
-    for (let row = 0; row < ROWS; row++){
-      for (let col = 0; col < COLS; col++){
-        const q = col - Math.floor(row / 2);
-        const r = row;
-        map.set(key(q, r), { q, r, col, row, key:key(q, r), wall:false });
+    for (let row = 0; row < nRows; row++){
+      for (let col = 0; col < nCols; col++){
+        let t;
+        if (shapeType === 'hex'){
+          const q = col - Math.floor(row / 2);
+          t = { q, r: row, col, row, key: key(q, row), wall:false };
+        } else {
+          t = { col, row, key: sqKey(row, col), wall:false };
+        }
+        map.set(t.key, t);
       }
     }
-    const start = tileAtColRow(map, START_COL, START_ROW);
-    const goal = tileAtColRow(map, GOAL_COL, GOAL_ROW);
+    const start = tileAtColRow(map, 1, 1);
+    const goal = tileAtColRow(map, nCols - 2, nRows - 2);
     for (const t of map.values()){
       if (t.key === start.key || t.key === goal.key) continue;
       t.wall = rng() < WALL_RATE;
@@ -378,26 +474,46 @@
   function generateMap(seed){
     let s = seed >>> 0;
     for (let attempt = 0; attempt < 120; attempt++){
-      const data = buildMap(s);
+      const data = buildMap(s, shape, cols, rows);
       if (reachable(data.map, data.start, data.goal)) return data;
       s = (s + 0x9E3779B9) >>> 0;
     }
-    // 极端情况下兜底：清空所有墙，保证有路
-    const data = buildMap(seed);
+    const data = buildMap(seed, shape, cols, rows);
     for (const t of data.map.values()) t.wall = false;
     return data;
   }
 
   function computePositions(map){
-    const hexW = Math.sqrt(3) * SIZE;
+    const padX = 70, padY = 50;
+    let halfW, halfH;
+
+    if (shape === 'hex'){
+      const fitW = (W - 2 * padX) / (Math.sqrt(3) * (cols + 0.5));
+      const fitH = (H - 2 * padY) / (1.5 * (rows - 1) + 2);
+      tileSize = clamp(Math.min(fitW, fitH), 13, 46);
+      const hexW = Math.sqrt(3) * tileSize;
+      for (const t of map.values()){
+        t.x = hexW * (t.q + t.r / 2);
+        t.y = 1.5 * tileSize * t.r;
+      }
+      halfW = hexW / 2;
+      halfH = tileSize;
+    } else {
+      cellSize = clamp(Math.min((W - 2 * padX) / cols, (H - 2 * padY) / rows), 14, 64);
+      for (const t of map.values()){
+        t.x = cellSize * (t.col + 0.5);
+        t.y = cellSize * (t.row + 0.5);
+      }
+      halfW = cellSize / 2;
+      halfH = cellSize / 2;
+    }
+
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const t of map.values()){
-      t.x = hexW * (t.q + t.r / 2);
-      t.y = SIZE * 1.5 * t.r;
-      minX = Math.min(minX, t.x - hexW / 2);
-      maxX = Math.max(maxX, t.x + hexW / 2);
-      minY = Math.min(minY, t.y - SIZE);
-      maxY = Math.max(maxY, t.y + SIZE);
+      minX = Math.min(minX, t.x - halfW);
+      maxX = Math.max(maxX, t.x + halfW);
+      minY = Math.min(minY, t.y - halfH);
+      maxY = Math.max(maxY, t.y + halfH);
     }
     const offX = (W - (maxX - minX)) / 2 - minX;
     const offY = (H - (maxY - minY)) / 2 - minY;
@@ -414,7 +530,7 @@
     for (const t of map.values()){
       nodes.set(t.key, {
         key:t.key, q:t.q, r:t.r, col:t.col, row:t.row, x:t.x, y:t.y,
-        wall:t.wall, g:Infinity, h:hexDistance(t, goal), f:Infinity,
+        wall:t.wall, g:Infinity, h:heuristicToGoal(t, goal), f:Infinity,
         parent:null, status:t.wall ? 'wall' : 'none'
       });
     }
@@ -462,10 +578,10 @@
         return shots;
       }
 
-      for (const [dq, dr] of DIRS){
-        const nb = nodes.get(key(current.q + dq, current.r + dr));
-        if (!nb || nb.wall || closed.has(nb.key)) continue;
-        const tentative = current.g + 1;
+      for (const edge of neighborsOf(current, nodes)){
+        const nb = edge.node;
+        if (closed.has(nb.key)) continue;
+        const tentative = current.g + edge.cost;
         if (tentative < nb.g - 1e-9){
           nb.g = tentative;
           nb.parent = currentKey;
@@ -510,6 +626,17 @@
     ctx.closePath();
   }
 
+  function tilePath(node, scale){
+    const s = scale == null ? 0.94 : scale;
+    if (shape === 'hex'){
+      hexPath(node.x, node.y, tileSize * s);
+    } else {
+      const side = cellSize * s;
+      ctx.beginPath();
+      ctx.rect(node.x - side / 2, node.y - side / 2, side, side);
+    }
+  }
+
   function drawTile(node, snap, pathSet){
     const isStart = node.key === startTile.key;
     const isGoal = node.key === goalTile.key;
@@ -533,7 +660,7 @@
       fill = '#fff7d6'; stroke = '#f59e0b'; lw = 2;
     }
 
-    hexPath(node.x, node.y, SIZE * 0.94);
+    tilePath(node, 0.94);
     ctx.fillStyle = fill;
     ctx.fill();
     ctx.strokeStyle = stroke;
@@ -541,43 +668,26 @@
     ctx.stroke();
 
     if (node.wall){
+      const base = baseSize();
       ctx.save();
-      hexPath(node.x, node.y, SIZE * 0.94);
+      tilePath(node, 0.94);
       ctx.clip();
       ctx.strokeStyle = 'rgba(255,255,255,.065)';
       ctx.lineWidth = 1;
-      for (let k = -SIZE * 2; k <= SIZE * 2; k += 8){
+      for (let k = -base * 2; k <= base * 2; k += 8){
         ctx.beginPath();
-        ctx.moveTo(node.x - SIZE + k, node.y - SIZE);
-        ctx.lineTo(node.x + SIZE + k, node.y + SIZE);
+        ctx.moveTo(node.x - base + k, node.y - base);
+        ctx.lineTo(node.x + base + k, node.y + base);
         ctx.stroke();
       }
       ctx.restore();
     }
   }
 
-  function drawPath(snap){
-    if (!snap.path || snap.path.length < 2) return;
-    ctx.save();
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    snap.path.forEach((k, i) => {
-      const n = snap.nodes.get(k);
-      if (i === 0) ctx.moveTo(n.x, n.y);
-      else ctx.lineTo(n.x, n.y);
-    });
-    ctx.strokeStyle = 'rgba(255,255,255,.72)';
-    ctx.lineWidth = 9;
-    ctx.stroke();
-    ctx.strokeStyle = '#c2410c';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.restore();
-  }
-
   function drawPathMarks(snap){
     if (!snap.path || snap.path.length < 2) return;
+    const base = baseSize();
+    const ar = Math.max(3.5, Math.min(7, base * 0.16));
     ctx.save();
     for (let i = 0; i < snap.path.length - 1; i++){
       const a = snap.nodes.get(snap.path[i]);
@@ -588,9 +698,9 @@
       const ux = Math.cos(ang), uy = Math.sin(ang);
       const px = -uy, py = ux;
       ctx.beginPath();
-      ctx.moveTo(mx + ux * 7, my + uy * 7);
-      ctx.lineTo(mx - ux * 4 + px * 4.5, my - uy * 4 + py * 4.5);
-      ctx.lineTo(mx - ux * 4 - px * 4.5, my - uy * 4 - py * 4.5);
+      ctx.moveTo(mx + ux * ar, my + uy * ar);
+      ctx.lineTo(mx - ux * ar * 0.6 + px * ar * 0.65, my - uy * ar * 0.6 + py * ar * 0.65);
+      ctx.lineTo(mx - ux * ar * 0.6 - px * ar * 0.65, my - uy * ar * 0.6 - py * ar * 0.65);
       ctx.closePath();
       ctx.fillStyle = '#b45309';
       ctx.fill();
@@ -605,23 +715,23 @@
     ctx.font = (weight || 700) + ' ' + (sizePx || 9.5) + 'px "Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = Math.max(1.4, Math.min(2.8, (sizePx || 9.5) * 0.25));
     ctx.strokeStyle = 'rgba(255,255,255,.92)';
     ctx.strokeText(text, x, y);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y);
   }
 
-  function drawBadge(x, y, text, color){
+  function drawBadge(x, y, text, color, radius){
     ctx.beginPath();
-    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1.6;
     ctx.stroke();
     ctx.fillStyle = '#fff';
-    ctx.font = '800 9px "Noto Sans CJK SC","Noto Sans SC",sans-serif';
+    ctx.font = '800 ' + Math.max(7, radius * 1.15) + 'px "Noto Sans CJK SC","Noto Sans SC",sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x, y + .5);
@@ -629,27 +739,33 @@
 
   function drawLabels(node, snap){
     if (node.wall) return;
+    const base = baseSize();
+    const fs = Math.max(6.5, Math.min(10.5, base * (shape === 'hex' ? 0.25 : 0.21)));
+    const line = fs + 3;
     const visited = Number.isFinite(node.g);
+
     if (!visited){
-      drawText('h ' + node.h, node.x, node.y, 'rgba(194,65,12,.36)', 8.5, 600);
+      const showUnvisited = shape === 'hex' ? base >= 30 : base >= 40;
+      if (showUnvisited){
+        drawText('h ' + fmt(node.h), node.x, node.y, 'rgba(194,65,12,.40)', fs * 0.9, 600);
+      }
       return;
     }
-    drawText('g ' + node.g, node.x, node.y - 13, '#1d4ed8', 9.5, 800);
-    drawText('h ' + node.h, node.x, node.y, '#c2410c', 9.5, 800);
-    drawText('f ' + node.f, node.x, node.y + 13, '#0f172a', 9.5, 800);
+    drawText('g ' + fmt(node.g), node.x, node.y - line, '#1d4ed8', fs, 800);
+    drawText('h ' + fmt(node.h), node.x, node.y, '#c2410c', fs, 800);
+    drawText('f ' + fmt(node.f), node.x, node.y + line, '#0f172a', fs, 800);
   }
 
   function drawCurrent(snap){
     if (!snap.currentKey) return;
     const n = snap.nodes.get(snap.currentKey);
     ctx.save();
-    ctx.beginPath();
-    hexPath(n.x, n.y, SIZE * 0.91);
+    tilePath(n, shape === 'hex' ? 0.90 : 0.93);
     ctx.strokeStyle = 'rgba(15,23,42,.18)';
-    ctx.lineWidth = 9;
+    ctx.lineWidth = 8;
     ctx.stroke();
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 2.3;
     ctx.stroke();
     ctx.restore();
   }
@@ -660,8 +776,7 @@
     if (!n) return;
     ctx.save();
     ctx.setLineDash([5, 4]);
-    ctx.beginPath();
-    hexPath(n.x, n.y, SIZE * 0.86);
+    tilePath(n, shape === 'hex' ? 0.86 : 0.88);
     ctx.strokeStyle = 'rgba(15,23,42,.8)';
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -680,18 +795,36 @@
 
     const pathSet = new Set(snap.path || []);
     for (const node of snap.nodes.values()) drawTile(node, snap, pathSet);
-    // 路径用黄色格子表示，箭头画在格子交界处，避免遮住 g/h/f 文字
     drawPathMarks(snap);
+
+    const base = baseSize();
+    const badgeR = Math.max(6, Math.min(8, base * 0.16));
+    const badgeOff = shape === 'hex' ? tileSize * 0.55 : cellSize * 0.34;
+
     for (const node of snap.nodes.values()){
       drawLabels(node, snap);
-      if (node.key === startTile.key) drawBadge(node.x - SIZE * .55, node.y - SIZE * .58, 'S', '#16a34a');
-      if (node.key === goalTile.key) drawBadge(node.x - SIZE * .55, node.y - SIZE * .58, 'G', '#dc2626');
+      if (node.key === startTile.key) drawBadge(node.x - badgeOff, node.y - badgeOff, 'S', '#16a34a', badgeR);
+      if (node.key === goalTile.key) drawBadge(node.x - badgeOff, node.y - badgeOff, 'G', '#dc2626', badgeR);
     }
     drawCurrent(snap);
     drawHover(snap);
   }
 
   /* ---------------- 面板 ---------------- */
+
+  function updateMeta(){
+    const lim = shapeLimits(shape);
+    colsInput.min = lim.minCols; colsInput.max = lim.maxCols;
+    rowsInput.min = lim.minRows; rowsInput.max = lim.maxRows;
+    colsInput.value = cols;
+    rowsInput.value = rows;
+
+    const label = shape === 'hex' ? '六边形' : (shape === 'square4' ? '方格 · 4 方向' : '方格 · 8 方向');
+    $('tileCount').textContent = cols + ' × ' + rows + ' = ' + (cols * rows) + ' 格';
+    $('hDesc').textContent = shape === 'hex' ? '六边形距离' : (shape === 'square4' ? '曼哈顿距离' : '八方向距离');
+    $('footerMeta').textContent = label + ' · 单位步长 · ' + (shape === 'hex' ? '六边形距离' : (shape === 'square4' ? '曼哈顿距离' : '八方向距离')) + '启发式';
+    $('seedLabel').textContent = '种子 ' + currentSeed + ' · S(' + startTile.row + ',' + startTile.col + ') → G(' + goalTile.row + ',' + goalTile.col + ')';
+  }
 
   function updatePanel(){
     const snap = snapshots[stepIndex];
@@ -707,38 +840,38 @@
 
     if (snap.phase === 'init'){
       phaseBadge.textContent = '起点';
-      $('currentCoord').textContent = '列 ' + (cur ? cur.col : '—') + ' · 行 ' + (cur ? cur.row : '—');
+      $('currentCoord').textContent = '行 ' + (cur ? cur.row : '—') + ' · 列 ' + (cur ? cur.col : '—');
     } else if (snap.phase === 'done'){
       phaseBadge.textContent = '找到路径';
-      $('currentCoord').textContent = '终点：列 ' + goalTile.col + ' · 行 ' + goalTile.row;
+      $('currentCoord').textContent = '终点：行 ' + goalTile.row + ' · 列 ' + goalTile.col;
     } else if (snap.phase === 'fail'){
       phaseBadge.textContent = '无解';
       $('currentCoord').textContent = '—';
     } else {
       phaseBadge.textContent = '扩展中';
-      $('currentCoord').textContent = '列 ' + cur.col + ' · 行 ' + cur.row;
+      $('currentCoord').textContent = '行 ' + cur.row + ' · 列 ' + cur.col;
     }
 
     const g = cur && Number.isFinite(cur.g) ? cur.g : null;
     const h = cur ? cur.h : null;
     const f = cur && Number.isFinite(cur.f) ? cur.f : null;
-    $('curG').textContent = g === null ? '—' : g;
-    $('curH').textContent = h === null ? '—' : h;
-    $('curF').textContent = f === null ? '—' : f;
+    $('curG').textContent = g === null ? '—' : fmt(g);
+    $('curH').textContent = h === null ? '—' : fmt(h);
+    $('curF').textContent = f === null ? '—' : fmt(f);
     $('calcLine').innerHTML = (g !== null && h !== null && f !== null)
-      ? 'f = <b>' + g + '</b> + <b>' + h + '</b> = <b>' + f + '</b>'
+      ? 'f = <b>' + fmt(g) + '</b> + <b>' + fmt(h) + '</b> = <b>' + fmt(f) + '</b>'
       : 'f = g + h';
 
     $('statExpanded').textContent = snap.expanded;
     $('statOpen').textContent = snap.open.size;
     const goalNode = snap.nodes.get(goalTile.key);
     const done = snap.phase === 'done';
-    $('statCost').textContent = done ? goalNode.g : '—';
+    $('statCost').textContent = done ? fmt(goalNode.g) : '—';
     $('statPath').textContent = done && snap.path ? (snap.path.length - 1) : '—';
 
     const status = $('mapStatus');
     if (snap.phase === 'done'){
-      status.textContent = '已找到最优路径：代价 ' + goalNode.g + '，扩展 ' + snap.expanded + ' 个节点';
+      status.textContent = '已找到最优路径：代价 ' + fmt(goalNode.g) + '，扩展 ' + snap.expanded + ' 个节点';
       status.className = 'ok';
     } else if (snap.phase === 'fail'){
       status.textContent = '当前地图没有可行路径，请调整墙或起终点';
@@ -796,13 +929,89 @@
     else play();
   }
 
+  /* ---------------- 地图 / 起点终点 ---------------- */
+
+  function updateModeButtons(){
+    setStartBtn.classList.toggle('active', editMode === 'start');
+    setGoalBtn.classList.toggle('active', editMode === 'goal');
+    canvas.classList.toggle('picking', !!editMode);
+    $('editHint').textContent = editMode === 'start'
+      ? '点击一个格子设置起点'
+      : (editMode === 'goal'
+        ? '点击一个格子设置终点'
+        : '左键切换墙 · Shift+左键设起点 · Alt+左键设终点 · 空格播放/暂停');
+  }
+
+  function setEditMode(mode){
+    editMode = editMode === mode ? null : mode;
+    updateModeButtons();
+  }
+
+  function setStart(t){
+    if (t.key === goalTile.key) return;
+    t.wall = false;
+    startTile = t;
+  }
+
+  function setGoal(t){
+    if (t.key === startTile.key) return;
+    t.wall = false;
+    goalTile = t;
+  }
+
+  function rebuild(){
+    pause();
+    updateMeta();
+    snapshots = computeSnapshots(tiles, startTile, goalTile);
+    stepIndex = 0;
+    render();
+    updatePanel();
+  }
+
+  function setMapData(data){
+    tiles = data.map;
+    startTile = data.start;
+    goalTile = data.goal;
+    currentSeed = data.seed >>> 0;
+    computePositions(tiles);
+    updateMeta();
+    rebuild();
+  }
+
+  function newMap(seed){
+    pause();
+    editMode = null;
+    updateModeButtons();
+    const data = generateMap(seed);
+    setMapData(data);
+  }
+
+  function randomMap(){
+    newMap((Math.random() * 0xFFFFFFFF) >>> 0);
+  }
+
+  function applyMapSettings(){
+    const nextShape = shapeSelect.value;
+    const lim = shapeLimits(nextShape);
+    shape = nextShape;
+    cols = clamp(parseInt(colsInput.value, 10) || lim.defCols, lim.minCols, lim.maxCols);
+    rows = clamp(parseInt(rowsInput.value, 10) || lim.defRows, lim.minRows, lim.maxRows);
+    newMap(currentSeed);
+  }
+
+  function resetSearch(){
+    pause();
+    setStep(0);
+  }
+
   /* ---------------- 交互 ---------------- */
 
   function tileAtEvent(e){
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (W / rect.width);
     const y = (e.clientY - rect.top) * (H / rect.height);
-    let best = null, bestD = SIZE * SIZE;
+    const hit = shape === 'hex' ? tileSize : cellSize;
+    let best = null, bestD = hit * hit;
     for (const t of tiles.values()){
       const dx = t.x - x, dy = t.y - y;
       const d = dx * dx + dy * dy;
@@ -819,12 +1028,12 @@
     const snap = snapshots[stepIndex];
     const n = snap.nodes.get(t.key);
     if (t.wall){
-      tooltip.innerHTML = '<b>墙</b><br><span>列 ' + t.col + ' · 行 ' + t.row + '</span>';
+      tooltip.innerHTML = '<b>墙</b><br><span>行 ' + t.row + ' · 列 ' + t.col + '</span>';
     } else {
-      const g = Number.isFinite(n.g) ? n.g : '—';
-      const f = Number.isFinite(n.f) ? n.f : '—';
-      tooltip.innerHTML = '<b>列 ' + t.col + ' · 行 ' + t.row + '</b>' +
-        '<br><span class="g">g ' + g + '</span> &nbsp; <span class="h">h ' + n.h + '</span> &nbsp; <span class="f">f ' + f + '</span>';
+      const g = Number.isFinite(n.g) ? fmt(n.g) : '—';
+      const f = Number.isFinite(n.f) ? fmt(n.f) : '—';
+      tooltip.innerHTML = '<b>行 ' + t.row + ' · 列 ' + t.col + '</b>' +
+        '<br><span class="g">g ' + g + '</span> &nbsp; <span class="h">h ' + fmt(n.h) + '</span> &nbsp; <span class="f">f ' + f + '</span>';
     }
     const rect = canvasWrap.getBoundingClientRect();
     let left = e.clientX - rect.left + 14;
@@ -834,31 +1043,6 @@
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
     tooltip.classList.add('show');
-  }
-
-  function rebuild(){
-    pause();
-    snapshots = computeSnapshots(tiles, startTile, goalTile);
-    stepIndex = 0;
-    render();
-    updatePanel();
-  }
-
-  function randomMap(){
-    pause();
-    currentSeed = (Math.random() * 0xFFFFFFFF) >>> 0;
-    const data = generateMap(currentSeed);
-    tiles = data.map;
-    startTile = data.start;
-    goalTile = data.goal;
-    computePositions(tiles);
-    $('seedLabel').textContent = '地图种子 ' + currentSeed;
-    rebuild();
-  }
-
-  function resetSearch(){
-    pause();
-    setStep(0);
   }
 
   canvas.addEventListener('mousemove', (e) => {
@@ -879,18 +1063,42 @@
     if (!t) return;
     pause();
 
-    if (e.shiftKey){
-      if (t.key === goalTile.key) return;
-      t.wall = false;
-      startTile = t;
-    } else if (e.altKey){
-      if (t.key === startTile.key) return;
-      t.wall = false;
-      goalTile = t;
-    } else {
-      if (t.key === startTile.key || t.key === goalTile.key) return;
-      t.wall = !t.wall;
+    if (editMode === 'start'){
+      setStart(t);
+      editMode = null;
+      updateModeButtons();
+      rebuild();
+      return;
     }
+    if (editMode === 'goal'){
+      setGoal(t);
+      editMode = null;
+      updateModeButtons();
+      rebuild();
+      return;
+    }
+
+    if (e.shiftKey){
+      setStart(t);
+      rebuild();
+      return;
+    }
+    if (e.altKey){
+      setGoal(t);
+      rebuild();
+      return;
+    }
+
+    if (t.key === startTile.key){
+      setEditMode('start');
+      return;
+    }
+    if (t.key === goalTile.key){
+      setEditMode('goal');
+      return;
+    }
+
+    t.wall = !t.wall;
     rebuild();
   });
 
@@ -899,6 +1107,11 @@
   nextBtn.addEventListener('click', () => { pause(); setStep(stepIndex + 1); });
   resetBtn.addEventListener('click', resetSearch);
   randomBtn.addEventListener('click', randomMap);
+  applyMapBtn.addEventListener('click', applyMapSettings);
+  shapeSelect.addEventListener('change', applyMapSettings);
+  setStartBtn.addEventListener('click', () => setEditMode('start'));
+  setGoalBtn.addEventListener('click', () => setEditMode('goal'));
+
   speed.addEventListener('input', () => {
     $('speedVal').textContent = speed.value;
     if (playing){
@@ -908,7 +1121,7 @@
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.target && e.target.matches && e.target.matches('button, input, textarea')) return;
+    if (e.target && e.target.matches && e.target.matches('button, input, textarea, select')) return;
     if (e.code === 'Space'){
       if (e.repeat) return;
       e.preventDefault();
@@ -928,19 +1141,30 @@
 
   function init(){
     const params = new URLSearchParams(location.search);
-    const seedParam = params.get('seed');
-    if (seedParam !== null && seedParam !== '' && Number.isFinite(Number(seedParam))){
-      currentSeed = Number(seedParam) >>> 0;
+
+    const shapeParam = params.get('shape');
+    if (shapeParam === 'hex' || shapeParam === 'square4' || shapeParam === 'square8'){
+      shape = shapeParam;
+    }
+    const lim = shapeLimits(shape);
+
+    const colsParam = Number(params.get('cols'));
+    const rowsParam = Number(params.get('rows'));
+    cols = clamp(Number.isFinite(colsParam) && colsParam > 0 ? Math.round(colsParam) : lim.defCols, lim.minCols, lim.maxCols);
+    rows = clamp(Number.isFinite(rowsParam) && rowsParam > 0 ? Math.round(rowsParam) : lim.defRows, lim.minRows, lim.maxRows);
+
+    const seedRaw = params.get('seed');
+    if (seedRaw !== null && seedRaw !== '' && Number.isFinite(Number(seedRaw)) && Number(seedRaw) >= 0){
+      currentSeed = Number(seedRaw) >>> 0;
     }
 
-    const data = generateMap(currentSeed);
-    tiles = data.map;
-    startTile = data.start;
-    goalTile = data.goal;
-    computePositions(tiles);
-    $('seedLabel').textContent = '地图种子 ' + currentSeed;
+    shapeSelect.value = shape;
+    colsInput.value = cols;
+    rowsInput.value = rows;
+    updateModeButtons();
 
-    snapshots = computeSnapshots(tiles, startTile, goalTile);
+    const data = generateMap(currentSeed);
+    setMapData(data);
 
     const stepParam = params.get('step');
     if (stepParam === 'last'){
@@ -950,7 +1174,6 @@
     } else {
       stepIndex = 0;
     }
-
     render();
     updatePanel();
 
