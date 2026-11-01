@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A* 六边形寻路可视化 · 人工智能导论</title>
+<style>
+  :root{
+    --navy:#0b1f3a;
+    --navy-2:#123b66;
+    --ink:#0f172a;
+    --muted:#5b6b82;
+    --line:#dbe6f3;
+    --bg:#eef4fb;
+    --blue:#1d4ed8;
+    --blue-soft:#eff6ff;
+    --orange:#c2410c;
+    --orange-soft:#fff7ed;
+    --green:#16a34a;
+    --red:#dc2626;
+    --yellow:#eab308;
+    --card-shadow:0 10px 30px rgba(15,34,64,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    min-height:100vh;
+    color:var(--ink);
+    background:
+      radial-gradient(900px 420px at 10% -10%, rgba(56,189,248,.16), transparent 60%),
+      radial-gradient(800px 380px at 95% 0%, rgba(251,146,60,.12), transparent 55%),
+      var(--bg);
+    font-family:"Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .hero{
+    position:relative;
+    overflow:hidden;
+    color:#fff;
+    background:linear-gradient(115deg,#07162b 0%,#0d2a4d 48%,#0b1f3a 100%);
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .hero::before{
+    content:"";
+    position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(125,211,252,.055) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(125,211,252,.055) 1px,transparent 1px);
+    background-size:34px 34px;
+    mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 90%);
+    pointer-events:none;
+  }
+  .hero::after{
+    content:"";
+    position:absolute;left:0;right:0;bottom:0;height:3px;
+    background:linear-gradient(90deg,#38bdf8,#22d3ee 38%,#fbbf24 72%,#fb923c);
+    opacity:.9;
+  }
+  .hero-inner{position:relative;max-width:1480px;margin:0 auto;padding:22px 28px 24px}
+  .eyebrow{
+    display:flex;align-items:center;gap:10px;
+    font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:#7dd3fc;font-weight:700;
+  }
+  .eyebrow::before{content:"";width:26px;height:1px;background:#38bdf8;display:inline-block}
+  h1{margin:8px 0 6px;font-size:clamp(26px,2.25vw,36px);line-height:1.18;letter-spacing:.01em}
+  .hero p{margin:0;color:#c7d7ea;font-size:13.5px}
+  .hero p b{color:#fde68a;font-weight:700}
+  main{
+    max-width:1480px;margin:20px auto 18px;padding:0 28px;
+    display:grid;grid-template-columns:minmax(0,1fr) 352px;gap:20px;align-items:start;
+  }
+  .card{
+    background:#fff;border:1px solid rgba(219,230,243,.9);
+    border-radius:18px;box-shadow:var(--card-shadow);
+  }
+  .board-card{padding:16px 16px 14px;min-width:0}
+  .board-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+  .legend{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+  .legend .item{display:flex;align-items:center;gap:6px;font-size:12px;color:#42536b;font-weight:600}
+  .swatch{width:12px;height:12px;border-radius:4px;border:2px solid transparent;display:inline-block}
+  .swatch.g{background:#dbeafe;border-color:#60a5fa}
+  .swatch.h{background:#ffedd5;border-color:#fb923c}
+  .swatch.open{background:#fff7d6;border-color:#f59e0b}
+  .swatch.closed{background:#e0f2fe;border-color:#38bdf8}
+  .swatch.path{background:#fef08a;border-color:#eab308}
+  .swatch.wall{background:#26364a;border-color:#0b1f3a}
+  .step-pill{
+    font-size:12px;color:#42536b;background:#f1f7ff;border:1px solid #d9e8fa;
+    padding:6px 11px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums;
+  }
+  .step-pill b{color:var(--navy);font-size:13px}
+  .canvas-wrap{
+    position:relative;border-radius:14px;overflow:hidden;
+    border:1px solid #dbe8f6;background:#f8fbff;
+  }
+  #board{display:block;width:100%;height:auto}
+  .tooltip{
+    position:absolute;z-index:5;pointer-events:none;opacity:0;transform:translateY(3px);
+    transition:opacity .08s ease, transform .08s ease;
+    background:rgba(8,23,45,.94);color:#eaf2fb;border:1px solid rgba(125,211,252,.25);
+    border-radius:10px;padding:7px 10px;font-size:11.5px;line-height:1.55;
+    box-shadow:0 8px 20px rgba(0,0,0,.22);white-space:nowrap;
+  }
+  .tooltip.show{opacity:1;transform:translateY(0)}
+  .tooltip b{color:#fff;font-size:12px}
+  .tooltip .g{color:#93c5fd}.tooltip .h{color:#fdba74}.tooltip .f{color:#fef08a}
+  .board-bottom{display:flex;justify-content:space-between;gap:10px;margin-top:9px;font-size:11.5px;color:#6b7c93;flex-wrap:wrap}
+  .board-bottom .ok{color:#15803d;font-weight:700}
+  .board-bottom .bad{color:#b91c1c;font-weight:700}
+  .side{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .side .card{padding:14px 15px}
+  .formula-card{background:linear-gradient(180deg,#ffffff,#f7fbff)}
+  .formula{font-size:25px;font-weight:900;text-align:center;letter-spacing:.03em;line-height:1.2}
+  .formula .g{color:var(--blue)}
+  .formula .h{color:var(--orange)}
+  .formula .f{color:var(--ink)}
+  .formula-sub{text-align:center;color:var(--muted);font-size:11.5px;margin-top:4px}
+  .defs{margin-top:11px;display:flex;flex-direction:column;gap:7px}
+  .defs .row{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:#35465d;line-height:1.45}
+  .defs .tag{
+    flex:0 0 18px;height:18px;border-radius:5px;display:grid;place-items:center;
+    font-weight:900;font-size:11px;color:#fff;margin-top:1px;
+  }
+  .defs .tag.g{background:#2563eb}
+  .defs .tag.h{background:#ea580c}
+  .defs .tag.f{background:#0f172a}
+  .defs b{color:var(--ink)}
+  .section-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 9px}
+  .section-title h2{margin:0;font-size:13px;letter-spacing:.02em;color:#243a57}
+  .phase-badge{
+    font-size:10.5px;font-weight:700;color:#1d4ed8;background:#eff6ff;
+    border:1px solid #bfdbfe;border-radius:999px;padding:3px 8px;white-space:nowrap;
+  }
+  .phase-badge.step{color:#b45309;background:#fffbeb;border-color:#fde68a}
+  .phase-badge.done{color:#15803d;background:#f0fdf4;border-color:#bbf7d0}
+  .phase-badge.fail{color:#b91c1c;background:#fef2f2;border-color:#fecaca}
+  .current-coord{font-size:12.5px;color:#42536b;font-weight:700;margin-bottom:8px}
+  .values{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .value{border-radius:11px;padding:8px 6px;text-align:center;border:1px solid transparent}
+  .value span{display:block;font-size:10.5px;font-weight:800;letter-spacing:.04em;margin-bottom:2px}
+  .value b{display:block;font-size:18px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .value.g{background:#eff6ff;border-color:#dbeafe;color:#1d4ed8}
+  .value.h{background:#fff7ed;border-color:#ffedd5;color:#c2410c}
+  .value.f{background:#f8fafc;border-color:#e2e8f0;color:#0f172a}
+  .calc{
+    margin-top:8px;text-align:center;font-size:11.5px;color:#64748b;
+    background:#f8fafc;border:1px dashed #dbe4ef;border-radius:9px;padding:6px;
+    font-variant-numeric:tabular-nums;
+  }
+  .calc b{color:#0f172a}
+  .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat{background:#f7fbff;border:1px solid #e3edf8;border-radius:11px;padding:8px 9px}
+  .stat b{display:block;font-size:17px;line-height:1.15;color:#102a4c;font-variant-numeric:tabular-nums}
+  .stat span{display:block;font-size:10.5px;color:#6b7c93;margin-top:1px}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  button{
+    appearance:none;border:1px solid #cfe0f3;background:#f8fbff;color:#17395f;
+    border-radius:10px;padding:9px 8px;font-size:12px;font-weight:700;cursor:pointer;
+    transition:transform .08s ease, background .12s ease, border-color .12s ease;
+    font-family:inherit;
+  }
+  button:hover{background:#eef7ff;border-color:#9cc6ea}
+  button:active{transform:translateY(1px)}
+  button.primary{grid-column:1/-1;background:var(--navy);border-color:var(--navy);color:#fff;font-size:13px}
+  button.primary:hover{background:#123b66;border-color:#123b66}
+  button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .speed{grid-column:1/-1;display:flex;align-items:center;gap:9px;font-size:11.5px;color:#5b6b82;margin-top:2px}
+  .speed input{flex:1;accent-color:#2563eb}
+  .note{background:#f7fbff;color:#42536b;font-size:11.5px;line-height:1.6}
+  .note b{color:#17395f}
+  .note p{margin:5px 0 0}
+  .progress{height:4px;background:#e8f1fb;border-radius:99px;overflow:hidden;margin-top:9px}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,#38bdf8,#2563eb);transition:width .12s linear}
+  footer{max-width:1480px;margin:0 auto 24px;padding:0 28px;color:#7b8aa0;font-size:11px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  @media (max-width:1120px){
+    main{grid-template-columns:1fr}
+    .side{display:grid;grid-template-columns:1fr 1fr}
+    .side .note{grid-column:1/-1}
+  }
+  @media (max-width:720px){
+    main{padding:0 14px;margin-top:14px}
+    .hero-inner{padding:18px 18px 20px}
+    .board-card{padding:12px}
+    .side{grid-template-columns:1fr}
+    .legend{gap:9px}
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">人工智能导论 · 5.3 A* 搜索</div>
+    <h1>六边形网格 A* 寻路可视化</h1>
+    <p><b>g</b> 是已经走过的实际代价，<b>h</b> 是到终点的估计代价，<b>f = g + h</b> 决定下一个扩展谁。</p>
+  </div>
+</header>
+
+<main>
+  <section class="card board-card">
+    <div class="board-top">
+      <div class="legend">
+        <span class="item"><i class="swatch open"></i>开放表</span>
+        <span class="item"><i class="swatch closed"></i>已扩展</span>
+        <span class="item"><i class="swatch path"></i>最终路径</span>
+        <span class="item"><i class="swatch wall"></i>墙</span>
+      </div>
+      <div class="step-pill">步骤 <b id="stepNow">0</b> / <b id="stepTotal">0</b></div>
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="board" width="1040" height="650" aria-label="六边形 A* 寻路画布"></canvas>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+
+    <div class="progress"><i id="progressBar"></i></div>
+    <div class="board-bottom">
+      <span>左键切换墙 · Shift+左键设起点 · Alt+左键设终点 · 空格播放/暂停</span>
+      <span id="mapStatus" class="ok">搜索准备就绪</span>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="card formula-card">
+      <div class="formula"><span class="f">f</span>(n) = <span class="g">g</span>(n) + <span class="h">h</span>(n)</div>
+      <div class="formula-sub">每个格子里的三个数字，就是这三个值</div>
+      <div class="defs">
+        <div class="row"><span class="tag g">g</span><div><b>实际代价</b>：从起点走到当前格，已经真实花掉的步数。</div></div>
+        <div class="row"><span class="tag h">h</span><div><b>估计代价</b>：当前格到终点的六边形距离，是“还剩多远”的估计。</div></div>
+        <div class="row"><span class="tag f">f</span><div><b>总估计</b>：f = g + h。A* 每次弹出 f 最小的格子；f 相同时优先 h 更小的。</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">
+        <h2>当前扩展节点</h2>
+        <span class="phase-badge" id="phaseBadge">起点</span>
+      </div>
+      <div class="current-coord" id="currentCoord">—</div>
+      <div class="values">
+        <div class="value g"><span>g</span><b id="curG">—</b></div>
+        <div class="value h"><span>h</span><b id="curH">—</b></div>
+        <div class="value f"><span>f</span><b id="curF">—</b></div>
+      </div>
+      <div class="calc" id="calcLine">f = g + h</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title"><h2>搜索统计</h2></div>
+      <div class="stats">
+        <div class="stat"><b id="statExpanded">0</b><span>已扩展节点</span></div>
+        <div class="stat"><b id="statOpen">0</b><span>开放表节点</span></div>
+        <div class="stat"><b id="statCost">—</b><span>路径代价</span></div>
+        <div class="stat"><b id="statPath">—</b><span>路径步数</span></div>
+      </div>
+    </div>
+
+    <div class="card controls">
+      <button id="playBtn" class="primary">▶ 开始搜索</button>
+      <button id="prevBtn">← 上一步</button>
+      <button id="nextBtn">下一步 →</button>
+      <button id="resetBtn">重置</button>
+      <button id="randomBtn">随机地图</button>
+      <div class="speed">速度 <input id="speed" type="range" min="1" max="10" value="6"><span id="speedVal">6</span></div>
+    </div>
+
+    <div class="card note">
+      <b>怎么读这张图？</b>
+      <p>蓝色 <b>g</b> 是已经走出来的，橙色 <b>h</b> 是算出来的估计，黑色 <b>f</b> 是两者之和。每扩展一个格子，它的邻居才第一次拥有 g 和 f；终点被弹出时，黄色路径就是最优路径。</p>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <span>六边形网格 · 单位步长 · 六边形距离启发式</span>
+  <span id="seedLabel">地图种子 —</span>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  const W = 1040, H = 650;
+  const SIZE = 37;
+  const COLS = 14, ROWS = 10;
+  const WALL_RATE = 0.24;
+  const DIRS = [[1,0],[-1,0],[1,-1],[0,-1],[0,1],[-1,1]];
+  const START_COL = 1, START_ROW = 1;
+  const GOAL_COL = COLS - 2, GOAL_ROW = ROWS - 2;
+
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const tooltip = document.getElementById('tooltip');
+  const canvasWrap = document.getElementById('canvasWrap');
+
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  let tiles = new Map();
+  let startTile = null, goalTile = null;
+  let snapshots = [];
+  let stepIndex = 0;
+  let timer = null;
+  let playing = false;
+  let hoverKey = null;
+  let currentSeed = 7;
+
+  const $ = (id) => document.getElementById(id);
+  const playBtn = $('playBtn'), prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
+  const resetBtn = $('resetBtn'), randomBtn = $('randomBtn'), speed = $('speed');
+
+  /* ---------------- 基础工具 ---------------- */
+
+  function key(q, r){ return q + ',' + r; }
+
+  function mulberry32(a){
+    return function(){
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hexDistance(a, b){
+    const dq = a.q - b.q, dr = a.r - b.r;
+    return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+  }
+
+  function tileAtColRow(map, col, row){
+    for (const t of map.values()){
+      if (t.col === col && t.row === row) return t;
+    }
+    return null;
+  }
+
+  function reachable(map, start, goal){
+    const seen = new Set([start.key]);
+    const queue = [start.key];
+    while (queue.length){
+      const k = queue.shift();
+      if (k === goal.key) return true;
+      const t = map.get(k);
+      for (const [dq, dr] of DIRS){
+        const nb = map.get(key(t.q + dq, t.r + dr));
+        if (nb && !nb.wall && !seen.has(nb.key)){
+          seen.add(nb.key);
+          queue.push(nb.key);
+        }
+      }
+    }
+    return false;
+  }
+
+  /* ---------------- 地图生成 ---------------- */
+
+  function buildMap(seed){
+    const map = new Map();
+    const rng = mulberry32(seed);
+    for (let row = 0; row < ROWS; row++){
+      for (let col = 0; col < COLS; col++){
+        const q = col - Math.floor(row / 2);
+        const r = row;
+        map.set(key(q, r), { q, r, col, row, key:key(q, r), wall:false });
+      }
+    }
+    const start = tileAtColRow(map, START_COL, START_ROW);
+    const goal = tileAtColRow(map, GOAL_COL, GOAL_ROW);
+    for (const t of map.values()){
+      if (t.key === start.key || t.key === goal.key) continue;
+      t.wall = rng() < WALL_RATE;
+    }
+    return { map, start, goal, seed };
+  }
+
+  function generateMap(seed){
+    let s = seed >>> 0;
+    for (let attempt = 0; attempt < 120; attempt++){
+      const data = buildMap(s);
+      if (reachable(data.map, data.start, data.goal)) return data;
+      s = (s + 0x9E3779B9) >>> 0;
+    }
+    // 极端情况下兜底：清空所有墙，保证有路
+    const data = buildMap(seed);
+    for (const t of data.map.values()) t.wall = false;
+    return data;
+  }
+
+  function computePositions(map){
+    const hexW = Math.sqrt(3) * SIZE;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const t of map.values()){
+      t.x = hexW * (t.q + t.r / 2);
+      t.y = SIZE * 1.5 * t.r;
+      minX = Math.min(minX, t.x - hexW / 2);
+      maxX = Math.max(maxX, t.x + hexW / 2);
+      minY = Math.min(minY, t.y - SIZE);
+      maxY = Math.max(maxY, t.y + SIZE);
+    }
+    const offX = (W - (maxX - minX)) / 2 - minX;
+    const offY = (H - (maxY - minY)) / 2 - minY;
+    for (const t of map.values()){
+      t.x += offX;
+      t.y += offY;
+    }
+  }
+
+  /* ---------------- A* 与快照 ---------------- */
+
+  function computeSnapshots(map, start, goal){
+    const nodes = new Map();
+    for (const t of map.values()){
+      nodes.set(t.key, {
+        key:t.key, q:t.q, r:t.r, col:t.col, row:t.row, x:t.x, y:t.y,
+        wall:t.wall, g:Infinity, h:hexDistance(t, goal), f:Infinity,
+        parent:null, status:t.wall ? 'wall' : 'none'
+      });
+    }
+    const startNode = nodes.get(start.key);
+    const goalNode = nodes.get(goal.key);
+    startNode.g = 0;
+    startNode.f = startNode.h;
+    startNode.status = 'open';
+
+    const open = [startNode.key];
+    const closed = new Set();
+    const shots = [];
+    let expanded = 0;
+
+    shots.push(makeSnapshot(nodes, open, closed, startNode.key, null, 0, 'init'));
+
+    while (open.length){
+      // 选 f 最小；f 相同选 h 更小；再相同选 g 更大（更靠近终点）
+      let best = 0;
+      for (let i = 1; i < open.length; i++){
+        const a = nodes.get(open[i]);
+        const b = nodes.get(open[best]);
+        if (a.f < b.f - 1e-9) best = i;
+        else if (Math.abs(a.f - b.f) < 1e-9){
+          if (a.h < b.h - 1e-9) best = i;
+          else if (Math.abs(a.h - b.h) < 1e-9 && a.g > b.g + 1e-9) best = i;
+        }
+      }
+      const currentKey = open.splice(best, 1)[0];
+      const current = nodes.get(currentKey);
+      if (closed.has(currentKey)) continue;
+      closed.add(currentKey);
+      current.status = 'closed';
+      expanded++;
+
+      if (currentKey === goalNode.key){
+        const path = [];
+        let p = current;
+        while (p){
+          path.push(p.key);
+          p = p.parent ? nodes.get(p.parent) : null;
+        }
+        path.reverse();
+        shots.push(makeSnapshot(nodes, open, closed, currentKey, path, expanded, 'done'));
+        return shots;
+      }
+
+      for (const [dq, dr] of DIRS){
+        const nb = nodes.get(key(current.q + dq, current.r + dr));
+        if (!nb || nb.wall || closed.has(nb.key)) continue;
+        const tentative = current.g + 1;
+        if (tentative < nb.g - 1e-9){
+          nb.g = tentative;
+          nb.parent = currentKey;
+          nb.f = nb.g + nb.h;
+          nb.status = 'open';
+          if (!open.includes(nb.key)) open.push(nb.key);
+        }
+      }
+
+      shots.push(makeSnapshot(nodes, open, closed, currentKey, null, expanded, 'step'));
+    }
+
+    shots.push(makeSnapshot(nodes, open, closed, null, null, expanded, 'fail'));
+    return shots;
+  }
+
+  function makeSnapshot(nodes, open, closed, currentKey, path, expanded, phase){
+    const copy = new Map();
+    for (const [k, n] of nodes) copy.set(k, Object.assign({}, n));
+    return {
+      nodes: copy,
+      open: new Set(open),
+      closed: new Set(closed),
+      currentKey,
+      path: path ? path.slice() : null,
+      expanded,
+      phase
+    };
+  }
+
+  /* ---------------- 绘制 ---------------- */
+
+  function hexPath(cx, cy, size){
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++){
+      const angle = Math.PI / 180 * (60 * i - 90);
+      const x = cx + size * Math.cos(angle);
+      const y = cy + size * Math.sin(angle);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  function drawTile(node, snap, pathSet){
+    const isStart = node.key === startTile.key;
+    const isGoal = node.key === goalTile.key;
+    const isPath = pathSet.has(node.key);
+    const isCurrent = node.key === snap.currentKey;
+
+    let fill = '#ffffff', stroke = '#d7e3f1', lw = 1.4;
+    if (node.wall){
+      fill = '#26364a'; stroke = '#0b1f3a'; lw = 1.3;
+    } else if (isStart){
+      fill = '#dcfce7'; stroke = '#16a34a'; lw = 3;
+    } else if (isGoal){
+      fill = '#fee2e2'; stroke = '#dc2626'; lw = 3;
+    } else if (isPath){
+      fill = '#fef08a'; stroke = '#eab308'; lw = 2.2;
+    } else if (isCurrent){
+      fill = '#d1fae5'; stroke = '#059669'; lw = 3;
+    } else if (snap.closed.has(node.key)){
+      fill = '#e0f2fe'; stroke = '#38bdf8'; lw = 1.6;
+    } else if (snap.open.has(node.key)){
+      fill = '#fff7d6'; stroke = '#f59e0b'; lw = 2;
+    }
+
+    hexPath(node.x, node.y, SIZE * 0.94);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+
+    if (node.wall){
+      ctx.save();
+      hexPath(node.x, node.y, SIZE * 0.94);
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(255,255,255,.065)';
+      ctx.lineWidth = 1;
+      for (let k = -SIZE * 2; k <= SIZE * 2; k += 8){
+        ctx.beginPath();
+        ctx.moveTo(node.x - SIZE + k, node.y - SIZE);
+        ctx.lineTo(node.x + SIZE + k, node.y + SIZE);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawPath(snap){
+    if (!snap.path || snap.path.length < 2) return;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    snap.path.forEach((k, i) => {
+      const n = snap.nodes.get(k);
+      if (i === 0) ctx.moveTo(n.x, n.y);
+      else ctx.lineTo(n.x, n.y);
+    });
+    ctx.strokeStyle = 'rgba(255,255,255,.72)';
+    ctx.lineWidth = 9;
+    ctx.stroke();
+    ctx.strokeStyle = '#c2410c';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPathMarks(snap){
+    if (!snap.path || snap.path.length < 2) return;
+    ctx.save();
+    for (let i = 0; i < snap.path.length - 1; i++){
+      const a = snap.nodes.get(snap.path[i]);
+      const b = snap.nodes.get(snap.path[i + 1]);
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const ang = Math.atan2(b.y - a.y, b.x - a.x);
+      const ux = Math.cos(ang), uy = Math.sin(ang);
+      const px = -uy, py = ux;
+      ctx.beginPath();
+      ctx.moveTo(mx + ux * 7, my + uy * 7);
+      ctx.lineTo(mx - ux * 4 + px * 4.5, my - uy * 4 + py * 4.5);
+      ctx.lineTo(mx - ux * 4 - px * 4.5, my - uy * 4 - py * 4.5);
+      ctx.closePath();
+      ctx.fillStyle = '#b45309';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.9)';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawText(text, x, y, color, sizePx, weight){
+    ctx.font = (weight || 700) + ' ' + (sizePx || 9.5) + 'px "Noto Sans CJK SC","Noto Sans SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,.92)';
+    ctx.strokeText(text, x, y);
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, y);
+  }
+
+  function drawBadge(x, y, text, color){
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = '800 9px "Noto Sans CJK SC","Noto Sans SC",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y + .5);
+  }
+
+  function drawLabels(node, snap){
+    if (node.wall) return;
+    const visited = Number.isFinite(node.g);
+    if (!visited){
+      drawText('h ' + node.h, node.x, node.y, 'rgba(194,65,12,.36)', 8.5, 600);
+      return;
+    }
+    drawText('g ' + node.g, node.x, node.y - 13, '#1d4ed8', 9.5, 800);
+    drawText('h ' + node.h, node.x, node.y, '#c2410c', 9.5, 800);
+    drawText('f ' + node.f, node.x, node.y + 13, '#0f172a', 9.5, 800);
+  }
+
+  function drawCurrent(snap){
+    if (!snap.currentKey) return;
+    const n = snap.nodes.get(snap.currentKey);
+    ctx.save();
+    ctx.beginPath();
+    hexPath(n.x, n.y, SIZE * 0.91);
+    ctx.strokeStyle = 'rgba(15,23,42,.18)';
+    ctx.lineWidth = 9;
+    ctx.stroke();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawHover(snap){
+    if (!hoverKey) return;
+    const n = snap.nodes.get(hoverKey);
+    if (!n) return;
+    ctx.save();
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    hexPath(n.x, n.y, SIZE * 0.86);
+    ctx.strokeStyle = 'rgba(15,23,42,.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function render(){
+    const snap = snapshots[stepIndex];
+    if (!snap) return;
+    ctx.clearRect(0, 0, W, H);
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#fbfdff');
+    bg.addColorStop(1, '#f3f9ff');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const pathSet = new Set(snap.path || []);
+    for (const node of snap.nodes.values()) drawTile(node, snap, pathSet);
+    // 路径用黄色格子表示，箭头画在格子交界处，避免遮住 g/h/f 文字
+    drawPathMarks(snap);
+    for (const node of snap.nodes.values()){
+      drawLabels(node, snap);
+      if (node.key === startTile.key) drawBadge(node.x - SIZE * .55, node.y - SIZE * .58, 'S', '#16a34a');
+      if (node.key === goalTile.key) drawBadge(node.x - SIZE * .55, node.y - SIZE * .58, 'G', '#dc2626');
+    }
+    drawCurrent(snap);
+    drawHover(snap);
+  }
+
+  /* ---------------- 面板 ---------------- */
+
+  function updatePanel(){
+    const snap = snapshots[stepIndex];
+    if (!snap) return;
+
+    $('stepNow').textContent = stepIndex;
+    $('stepTotal').textContent = snapshots.length - 1;
+    $('progressBar').style.width = (snapshots.length > 1 ? (stepIndex / (snapshots.length - 1)) * 100 : 0) + '%';
+
+    const cur = snap.currentKey ? snap.nodes.get(snap.currentKey) : null;
+    const phaseBadge = $('phaseBadge');
+    phaseBadge.className = 'phase-badge ' + (snap.phase === 'step' ? 'step' : snap.phase === 'done' ? 'done' : snap.phase === 'fail' ? 'fail' : '');
+
+    if (snap.phase === 'init'){
+      phaseBadge.textContent = '起点';
+      $('currentCoord').textContent = '列 ' + (cur ? cur.col : '—') + ' · 行 ' + (cur ? cur.row : '—');
+    } else if (snap.phase === 'done'){
+      phaseBadge.textContent = '找到路径';
+      $('currentCoord').textContent = '终点：列 ' + goalTile.col + ' · 行 ' + goalTile.row;
+    } else if (snap.phase === 'fail'){
+      phaseBadge.textContent = '无解';
+      $('currentCoord').textContent = '—';
+    } else {
+      phaseBadge.textContent = '扩展中';
+      $('currentCoord').textContent = '列 ' + cur.col + ' · 行 ' + cur.row;
+    }
+
+    const g = cur && Number.isFinite(cur.g) ? cur.g : null;
+    const h = cur ? cur.h : null;
+    const f = cur && Number.isFinite(cur.f) ? cur.f : null;
+    $('curG').textContent = g === null ? '—' : g;
+    $('curH').textContent = h === null ? '—' : h;
+    $('curF').textContent = f === null ? '—' : f;
+    $('calcLine').innerHTML = (g !== null && h !== null && f !== null)
+      ? 'f = <b>' + g + '</b> + <b>' + h + '</b> = <b>' + f + '</b>'
+      : 'f = g + h';
+
+    $('statExpanded').textContent = snap.expanded;
+    $('statOpen').textContent = snap.open.size;
+    const goalNode = snap.nodes.get(goalTile.key);
+    const done = snap.phase === 'done';
+    $('statCost').textContent = done ? goalNode.g : '—';
+    $('statPath').textContent = done && snap.path ? (snap.path.length - 1) : '—';
+
+    const status = $('mapStatus');
+    if (snap.phase === 'done'){
+      status.textContent = '已找到最优路径：代价 ' + goalNode.g + '，扩展 ' + snap.expanded + ' 个节点';
+      status.className = 'ok';
+    } else if (snap.phase === 'fail'){
+      status.textContent = '当前地图没有可行路径，请调整墙或起终点';
+      status.className = 'bad';
+    } else if (snap.phase === 'init'){
+      status.textContent = '搜索准备就绪';
+      status.className = 'ok';
+    } else {
+      status.textContent = '搜索中：每次扩展 f 最小的节点';
+      status.className = '';
+    }
+
+    prevBtn.disabled = stepIndex <= 0;
+    nextBtn.disabled = stepIndex >= snapshots.length - 1;
+    playBtn.textContent = playing ? '⏸ 暂停' : (stepIndex >= snapshots.length - 1 ? '↻ 重新播放' : '▶ 开始搜索');
+  }
+
+  /* ---------------- 播放控制 ---------------- */
+
+  function setStep(n){
+    stepIndex = Math.max(0, Math.min(snapshots.length - 1, n));
+    render();
+    updatePanel();
+  }
+
+  function interval(){
+    return 700 - Number(speed.value) * 55;
+  }
+
+  function play(){
+    if (!snapshots.length) return;
+    if (stepIndex >= snapshots.length - 1) setStep(0);
+    if (playing) return;
+    playing = true;
+    updatePanel();
+    timer = setInterval(() => {
+      if (stepIndex >= snapshots.length - 1){
+        pause();
+        return;
+      }
+      setStep(stepIndex + 1);
+      if (stepIndex >= snapshots.length - 1) pause();
+    }, interval());
+  }
+
+  function pause(){
+    if (timer) clearInterval(timer);
+    timer = null;
+    playing = false;
+    updatePanel();
+  }
+
+  function togglePlay(){
+    if (playing) pause();
+    else play();
+  }
+
+  /* ---------------- 交互 ---------------- */
+
+  function tileAtEvent(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (W / rect.width);
+    const y = (e.clientY - rect.top) * (H / rect.height);
+    let best = null, bestD = SIZE * SIZE;
+    for (const t of tiles.values()){
+      const dx = t.x - x, dy = t.y - y;
+      const d = dx * dx + dy * dy;
+      if (d < bestD){ bestD = d; best = t; }
+    }
+    return best;
+  }
+
+  function showTooltip(t, e){
+    if (!t){
+      tooltip.classList.remove('show');
+      return;
+    }
+    const snap = snapshots[stepIndex];
+    const n = snap.nodes.get(t.key);
+    if (t.wall){
+      tooltip.innerHTML = '<b>墙</b><br><span>列 ' + t.col + ' · 行 ' + t.row + '</span>';
+    } else {
+      const g = Number.isFinite(n.g) ? n.g : '—';
+      const f = Number.isFinite(n.f) ? n.f : '—';
+      tooltip.innerHTML = '<b>列 ' + t.col + ' · 行 ' + t.row + '</b>' +
+        '<br><span class="g">g ' + g + '</span> &nbsp; <span class="h">h ' + n.h + '</span> &nbsp; <span class="f">f ' + f + '</span>';
+    }
+    const rect = canvasWrap.getBoundingClientRect();
+    let left = e.clientX - rect.left + 14;
+    let top = e.clientY - rect.top + 14;
+    if (left + 180 > rect.width) left = e.clientX - rect.left - 175;
+    if (top + 70 > rect.height) top = e.clientY - rect.top - 70;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+    tooltip.classList.add('show');
+  }
+
+  function rebuild(){
+    pause();
+    snapshots = computeSnapshots(tiles, startTile, goalTile);
+    stepIndex = 0;
+    render();
+    updatePanel();
+  }
+
+  function randomMap(){
+    pause();
+    currentSeed = (Math.random() * 0xFFFFFFFF) >>> 0;
+    const data = generateMap(currentSeed);
+    tiles = data.map;
+    startTile = data.start;
+    goalTile = data.goal;
+    computePositions(tiles);
+    $('seedLabel').textContent = '地图种子 ' + currentSeed;
+    rebuild();
+  }
+
+  function resetSearch(){
+    pause();
+    setStep(0);
+  }
+
+  canvas.addEventListener('mousemove', (e) => {
+    const t = tileAtEvent(e);
+    hoverKey = t ? t.key : null;
+    showTooltip(t, e);
+    render();
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    hoverKey = null;
+    tooltip.classList.remove('show');
+    render();
+  });
+
+  canvas.addEventListener('click', (e) => {
+    const t = tileAtEvent(e);
+    if (!t) return;
+    pause();
+
+    if (e.shiftKey){
+      if (t.key === goalTile.key) return;
+      t.wall = false;
+      startTile = t;
+    } else if (e.altKey){
+      if (t.key === startTile.key) return;
+      t.wall = false;
+      goalTile = t;
+    } else {
+      if (t.key === startTile.key || t.key === goalTile.key) return;
+      t.wall = !t.wall;
+    }
+    rebuild();
+  });
+
+  playBtn.addEventListener('click', togglePlay);
+  prevBtn.addEventListener('click', () => { pause(); setStep(stepIndex - 1); });
+  nextBtn.addEventListener('click', () => { pause(); setStep(stepIndex + 1); });
+  resetBtn.addEventListener('click', resetSearch);
+  randomBtn.addEventListener('click', randomMap);
+  speed.addEventListener('input', () => {
+    $('speedVal').textContent = speed.value;
+    if (playing){
+      pause();
+      play();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target && e.target.matches && e.target.matches('button, input, textarea')) return;
+    if (e.code === 'Space'){
+      if (e.repeat) return;
+      e.preventDefault();
+      togglePlay();
+    } else if (e.code === 'ArrowRight'){
+      e.preventDefault();
+      pause();
+      setStep(stepIndex + 1);
+    } else if (e.code === 'ArrowLeft'){
+      e.preventDefault();
+      pause();
+      setStep(stepIndex - 1);
+    }
+  });
+
+  /* ---------------- 启动 ---------------- */
+
+  function init(){
+    const params = new URLSearchParams(location.search);
+    const seedParam = params.get('seed');
+    if (seedParam !== null && seedParam !== '' && Number.isFinite(Number(seedParam))){
+      currentSeed = Number(seedParam) >>> 0;
+    }
+
+    const data = generateMap(currentSeed);
+    tiles = data.map;
+    startTile = data.start;
+    goalTile = data.goal;
+    computePositions(tiles);
+    $('seedLabel').textContent = '地图种子 ' + currentSeed;
+
+    snapshots = computeSnapshots(tiles, startTile, goalTile);
+
+    const stepParam = params.get('step');
+    if (stepParam === 'last'){
+      stepIndex = snapshots.length - 1;
+    } else if (stepParam !== null && Number.isFinite(Number(stepParam))){
+      stepIndex = Math.max(0, Math.min(snapshots.length - 1, Number(stepParam)));
+    } else {
+      stepIndex = 0;
+    }
+
+    render();
+    updatePanel();
+
+    if (params.get('autoplay') === '1' && stepParam === null){
+      play();
+    }
+    document.body.dataset.ready = '1';
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
